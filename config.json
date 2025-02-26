@@ -1,0 +1,26 @@
+{
+    "api_configs": {
+        "deepseek": {
+            "api_key": "your-deepseek-api-key-here",
+            "base_url": "https://api.deepseek.com/v1"
+        },
+        "gemini": {
+            "api_key": "",
+            "base_url": "https://api.gemini.com/v1"
+        },
+        "claude": {
+            "api_key": "",
+            "base_url": "https://api.anthropic.com/v1"
+        },
+        "openai": {
+            "api_key": "AIzaSyCFFqayHa_xqUZUD2SwnkP3UTRi2HPj0Rg",
+            "base_url": "https://jokertest-gemini-play.deno.dev/"
+        },
+        "tongyi": {
+            "api_key": "",
+            "base_url": "https://api.qianwen.com/v1"
+        }
+    },
+    "default_model": "openai",
+    "midscene_model_name": "gemini-2.0-pro-exp"
+}
