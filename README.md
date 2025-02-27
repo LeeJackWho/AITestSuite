@@ -29,6 +29,10 @@ AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 AI_API_ENDPOINT=https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation
 AI_API_KEY=your_api_key_here
 MODEL_NAME=model_name_here
+
+GEMINI_BASE_URL=https://gemini/v1/chat/completions
+GEMINI_API_KEY=666
+GEMINI_MODEL_NAME=gemini-2.0-pro-exp
 ```
 
 如果需要使用特定模型，也可以配置以下密钥（可选）：
