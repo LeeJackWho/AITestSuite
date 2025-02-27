@@ -8,8 +8,9 @@ import pandas as pd
 from openpyxl.styles import Alignment
 # 加载 通义千问 API 密钥（需提前设置环境变量或使用 .env 文件）
 load_dotenv()
-QIANWEN_API_KEY = os.getenv("QIANWEN_API_KEY")
-QIANWEN_API_ENDPOINT = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+AI_API_KEY = os.getenv("AI_API_KEY")
+AI_API_ENDPOINT = os.getenv("AI_API_ENDPOINT")
+MODEL_NAME = os.getenv("MODEL_NAME")
 
 def extract_text_from_pdf(pdf_path):
     """提取 PDF 文本内容"""
@@ -23,7 +24,7 @@ def extract_text_from_pdf(pdf_path):
 def call_qianwen_model(prompt, text, max_retries=4):
     """调用 通义千问 模型（增强重试机制）"""
     headers = {
-        "Authorization": f"Bearer {QIANWEN_API_KEY}",
+        "Authorization": f"Bearer {AI_API_KEY}",
         "Content-Type": "application/json; charset=utf-8"  # 明确指定UTF-8编码
     }
     # 严格格式要求的系统提示
@@ -38,7 +39,7 @@ def call_qianwen_model(prompt, text, max_retries=4):
         try:
             # 构建请求数据
             request_data = {
-                "model": "qwen-max",  # 使用通义千问最新模型
+                "model": f"{MODEL_NAME}",  # 使用通义千问最新模型
                 "input": {
                     "messages": [
                         {"role": "system", "content": system_prompt},
@@ -57,7 +58,7 @@ def call_qianwen_model(prompt, text, max_retries=4):
             
             # 使用data参数而不是json参数，并明确指定编码
             response = requests.post(
-                QIANWEN_API_ENDPOINT,
+                AI_API_ENDPOINT,
                 headers=headers,
                 data=json_data_str.encode('utf-8'),
                 timeout=50
@@ -117,10 +118,10 @@ def call_qianwen_model(prompt, text, max_retries=4):
             time.sleep(5)
     raise Exception("API请求失败超过最大重试次数")
 
-def generate_test_cases(pdf_path, output_excel="./生成测试用例/TestCase_Report_v4.xlsx"):
+def generate_test_cases(pdf_path, output_excel="./PDF生成测试用例/TestCase_Report_v4.xlsx"):
     """主流程：解析 PDF -> 生成测试用例 -> 返回结构化数据"""
     # 确保目录存在
-    os.makedirs("./生成测试用例", exist_ok=True)
+    os.makedirs("./PDF生成测试用例", exist_ok=True)
     
     # 1. 提取 PDF 文本
     text = extract_text_from_pdf(pdf_path)
@@ -247,8 +248,8 @@ def export_to_excel(data, filename):
 
 if __name__ == "__main__":
     # 检查API密钥
-    if not QIANWEN_API_KEY:
-        print("错误：未设置QIANWEN_API_KEY环境变量，请在.env文件中添加或设置环境变量")
+    if not AI_API_KEY:
+        print("错误：未设置AI_API_KEY环境变量，请在.env文件中添加或设置环境变量")
         exit(1)
         
     # 生成结构化数据
@@ -256,7 +257,7 @@ if __name__ == "__main__":
     # 检查有效数据
     if test_case_data and len(test_case_data) > 0:
         # 添加文件存在性检查
-        output_file = "./生成测试用例/TestCase_Report_v5.xlsx"
+        output_file = "./PDF生成测试用例/TestCase_Report_v5.xlsx"
         if os.path.exists(output_file):
             os.remove(output_file)
         export_to_excel(test_case_data, output_file)

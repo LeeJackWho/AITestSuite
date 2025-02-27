@@ -4,21 +4,49 @@ import re
 import json
 import pandas as pd
 import requests
+import argparse
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
 
-# 获取API密钥
+# 获取API密钥和配置
+AI_BASE_URL = os.getenv("AI_BASE_URL")
+AI_API_ENDPOINT = os.getenv("AI_API_ENDPOINT")
+AI_API_KEY = os.getenv("AI_API_KEY")
+MODEL_NAME = os.getenv("MODEL_NAME", "default")
+
+# 确定API端点，优先使用AI_BASE_URL
+API_ENDPOINT = AI_BASE_URL or AI_API_ENDPOINT
+
+# 获取特定模型的API密钥（可选）
 QIANWEN_API_KEY = os.getenv("QIANWEN_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# 支持的模型配置
+# 通用模型配置
 MODEL_CONFIGS = {
-    "qwen-max": {
+    "default": {
+        "api_key_env": "AI_API_KEY",
+        "endpoint": API_ENDPOINT,
+        "headers": lambda key: {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json; charset=utf-8"
+        },
+        "payload": lambda messages, temperature: {
+            "model": MODEL_NAME,
+            "messages": messages,
+            "temperature": temperature
+        },
+        "response_parser": lambda json_data: json_data["choices"][0]["message"]["content"] if "choices" in json_data and len(json_data["choices"]) > 0 else ""
+    }
+}
+
+# 如果有特定模型的API密钥，添加对应的配置
+if QIANWEN_API_KEY:
+    MODEL_CONFIGS["qianwen"] = {
         "api_key_env": "QIANWEN_API_KEY",
         "endpoint": "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
         "headers": lambda key: {
@@ -36,109 +64,10 @@ MODEL_CONFIGS = {
             }
         },
         "response_parser": lambda json_data: json_data["output"]["message"]["content"] if "output" in json_data and "message" in json_data["output"] else ""
-    },
-    "qwen-turbo": {
-        "api_key_env": "QIANWEN_API_KEY",
-        "endpoint": "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
-        "headers": lambda key: {
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json; charset=utf-8"
-        },
-        "payload": lambda messages, temperature: {
-            "model": "qwen-turbo",
-            "input": {
-                "messages": messages
-            },
-            "parameters": {
-                "temperature": temperature,
-                "result_format": "message"
-            }
-        },
-        "response_parser": lambda json_data: json_data["output"]["message"]["content"] if "output" in json_data and "message" in json_data["output"] else ""
-    },
-    "deepseek-v1": {
-        "api_key_env": "DEEPSEEK_API_KEY",
-        "endpoint": "https://api.deepseek.com/v1/chat/completions",
-        "headers": lambda key: {
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
-        },
-        "payload": lambda messages, temperature: {
-            "model": "deepseek-chat",
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": 4000  # 增加最大token数以获取更详细的测试用例
-        },
-        "response_parser": lambda json_data: json_data["choices"][0]["message"]["content"] if "choices" in json_data and len(json_data["choices"]) > 0 else ""
-    },
-    "deepseek-coder": {
-        "api_key_env": "DEEPSEEK_API_KEY",
-        "endpoint": "https://api.deepseek.com/v1/chat/completions",
-        "headers": lambda key: {
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
-        },
-        "payload": lambda messages, temperature: {
-            "model": "deepseek-coder",
-            "messages": messages,
-            "temperature": temperature
-        },
-        "response_parser": lambda json_data: json_data["choices"][0]["message"]["content"] if "choices" in json_data and len(json_data["choices"]) > 0 else ""
-    },
-    "openai-gpt4": {
-        "api_key_env": "OPENAI_API_KEY",
-        "endpoint": "https://api.openai.com/v1/chat/completions",
-        "headers": lambda key: {
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
-        },
-        "payload": lambda messages, temperature: {
-            "model": "gpt-4",
-            "messages": messages,
-            "temperature": temperature
-        },
-        "response_parser": lambda json_data: json_data["choices"][0]["message"]["content"] if "choices" in json_data and len(json_data["choices"]) > 0 else ""
-    },
-    "openai-gpt35": {
-        "api_key_env": "OPENAI_API_KEY",
-        "endpoint": "https://api.openai.com/v1/chat/completions",
-        "headers": lambda key: {
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
-        },
-        "payload": lambda messages, temperature: {
-            "model": "gpt-3.5-turbo",
-            "messages": messages,
-            "temperature": temperature
-        },
-        "response_parser": lambda json_data: json_data["choices"][0]["message"]["content"] if "choices" in json_data and len(json_data["choices"]) > 0 else ""
-    },
-    "gemini-pro": {
-        "api_key_env": "GEMINI_API_KEY",
-        "endpoint": "https://gemini-play.com/",
-        "headers": lambda key: {
-            "Content-Type": "application/json"
-        },
-        "payload": lambda messages, temperature: {
-            "contents": [
-                {
-                    "role": "user" if msg["role"] == "system" else msg["role"],
-                    "parts": [{"text": msg["content"]}]
-                } for msg in messages
-            ],
-            "generationConfig": {
-                "temperature": temperature,
-                "maxOutputTokens": 2048,
-                "topP": 0.95
-            }
-        },
-        "url_params": lambda key: {"key": key},
-        "response_parser": lambda json_data: json_data["candidates"][0]["content"]["parts"][0]["text"] if "candidates" in json_data and len(json_data["candidates"]) > 0 else ""
     }
-}
 
 # 修改默认模型
-DEFAULT_MODEL = "deepseek-v1"
+DEFAULT_MODEL = "default"
 
 # 默认配置
 DEFAULT_CONFIG = {
@@ -158,6 +87,15 @@ PRIORITY_MAP = {
     "low": "Low",
     "nice to have": "Nice To Have"
 }
+
+def parse_arguments():
+    """解析命令行参数"""
+    parser = argparse.ArgumentParser(description='AI测试用例生成器')
+    parser.add_argument('--input', type=str, help='输入需求文件路径')
+    parser.add_argument('--model', type=str, default=DEFAULT_MODEL, help='使用的AI模型')
+    parser.add_argument('--output-dir', type=str, default='./测试用例', help='测试用例输出目录')
+    parser.add_argument('--report-dir', type=str, default='./测试报告', help='测试报告输出目录')
+    return parser.parse_args()
 
 def read_excel_requirements(file_path):
     """读取Excel需求文档"""
@@ -219,23 +157,15 @@ def call_ai_model(model_name, messages, max_retries=3, temperature=0.3):
     headers = model_config["headers"](api_key)
     endpoint = model_config["endpoint"]
     
+    if not endpoint:
+        print(f"错误：未设置API端点，请在.env文件中配置AI_BASE_URL或AI_API_ENDPOINT")
+        return None
+    
     total_tokens = 0
     
     for attempt in range(max_retries):
         try:
             payload = model_config["payload"](messages, temperature)
-            
-            # DeepSeek模型特殊处理
-            if model_name.startswith("deepseek"):
-                # 确保系统提示正确处理
-                if messages and messages[0]["role"] == "system":
-                    # DeepSeek需要特殊处理系统提示
-                    system_content = messages[0]["content"]
-                    # 移除系统消息，将其内容添加到用户消息前
-                    user_messages = [msg for msg in messages if msg["role"] != "system"]
-                    if user_messages and user_messages[0]["role"] == "user":
-                        user_messages[0]["content"] = f"{system_content}\n\n{user_messages[0]['content']}"
-                    payload = model_config["payload"](user_messages, temperature)
             
             # 将payload转换为JSON字符串，确保正确处理中文
             json_data_str = json.dumps(payload, ensure_ascii=False)
@@ -253,6 +183,7 @@ def call_ai_model(model_name, messages, max_retries=3, temperature=0.3):
                 endpoint = f"{endpoint}?{'&'.join([f'{k}={v}' for k, v in url_params.items()])}"
             
             # 发送请求
+            print(f"正在调用API: {endpoint}")
             response = requests.post(endpoint, **request_kwargs)
             
             # 检查响应状态
@@ -815,7 +746,15 @@ def generate_sample_requirements():
 
 def main():
     """主函数"""
-    print("=== 增强型测试用例生成器 ===")
+    print("=== AITestSuite - 智能测试用例生成器 ===")
+    
+    # 检查API端点配置
+    if not (AI_BASE_URL or AI_API_ENDPOINT):
+        print("错误：未配置API端点，请在.env文件中设置AI_BASE_URL或AI_API_ENDPOINT")
+        return
+    
+    # 解析命令行参数
+    args = parse_arguments()
     
     # 检查可用模型
     available_models = get_available_models()
@@ -826,9 +765,11 @@ def main():
     print(f"可用模型: {', '.join(available_models)}")
     
     # 获取输入文件
-    input_file = input("请输入需求Excel文件路径 (默认: 需求文档/sample_requirements.xlsx): ").strip()
+    input_file = args.input
     if not input_file:
-        input_file = "需求文档/sample_requirements.xlsx"
+        input_file = input("请输入需求Excel文件路径 (默认: 需求文档/sample_requirements.xlsx): ").strip()
+        if not input_file:
+            input_file = "需求文档/sample_requirements.xlsx"
     
     # 如果文件不存在且是默认文件，尝试生成示例文件
     if not os.path.exists(input_file) and input_file == "需求文档/sample_requirements.xlsx":
@@ -841,9 +782,11 @@ def main():
         return
     
     # 选择模型
-    model_name = input(f"请选择AI模型 (默认: {DEFAULT_MODEL}): ").strip()
+    model_name = args.model
     if not model_name:
-        model_name = DEFAULT_MODEL
+        model_name = input(f"请选择AI模型 (默认: {DEFAULT_MODEL}): ").strip()
+        if not model_name:
+            model_name = DEFAULT_MODEL
     
     if model_name not in MODEL_CONFIGS:
         print(f"错误：不支持的模型 '{model_name}'，将使用默认模型 '{DEFAULT_MODEL}'")
@@ -854,8 +797,8 @@ def main():
         return
     
     # 设置输出目录
-    test_cases_dir = "./测试用例"
-    test_report_dir = "./测试报告"
+    test_cases_dir = args.output_dir
+    test_report_dir = args.report_dir
     os.makedirs(test_cases_dir, exist_ok=True)
     os.makedirs(test_report_dir, exist_ok=True)
     
