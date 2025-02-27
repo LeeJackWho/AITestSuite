@@ -66,6 +66,23 @@ if QIANWEN_API_KEY:
         "response_parser": lambda json_data: json_data["output"]["message"]["content"] if "output" in json_data and "message" in json_data["output"] else ""
     }
 
+# 添加Gemini模型配置
+if GEMINI_API_KEY:
+    MODEL_CONFIGS["mygemini"] = {
+        "api_key_env": "GEMINI_API_KEY",
+        "endpoint": os.getenv("GEMINI_BASE_URL"),  # 从环境变量获取GEMINI_BASE_URL
+        "headers": lambda key: {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json"
+        },
+        "payload": lambda messages, temperature: {
+            "model": os.getenv("GEMINI_MODEL_NAME"),  # 从环境变量获取模型名称
+            "messages": messages,
+            "temperature": temperature  # 添加temperature参数
+        },
+        "response_parser": lambda json_data: json_data["choices"][0]["message"]["content"] if "choices" in json_data and len(json_data["choices"]) > 0 else ""
+    }
+
 # 修改默认模型
 DEFAULT_MODEL = "default"
 
