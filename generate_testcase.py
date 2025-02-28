@@ -393,18 +393,21 @@ def generate_test_cases(requirements, model_name):
             continue
             
         # 解析测试用例
-        parsed_cases = parse_test_cases(response, req_id, parent_req, std_priority)
+        parsed_cases = parse_test_cases(response, req_id,req_title, parent_req, std_priority)
         all_test_cases.extend(parsed_cases)
         
         print(f"为需求 {req_id} 生成了 {len(parsed_cases)} 条测试用例")
     
     return all_test_cases
 
-def parse_test_cases(response, req_id, parent_req, std_priority):
+def parse_test_cases(response, req_id,req_title, parent_req, std_priority):
     """解析AI生成的测试用例文本"""
     if not response:
         return []
-    
+
+    # 预处理：去除AI对话式的开头
+    response = re.sub(r'^.*?(?:### 测试用例|测试用例1|测试用例：)', '', response, flags=re.DOTALL).strip()
+
     test_cases = []
     case_blocks = re.split(r'###\s+测试用例\d+[:：]', response)
     
@@ -452,7 +455,7 @@ def parse_test_cases(response, req_id, parent_req, std_priority):
                 "需求ID": req_id,
                 "父需求": parent_req,
                 "需求分类": DEFAULT_CONFIG["需求分类"],
-                "标题": f"测试-{title}",
+                "标题": f"测试-{req_title}-{title}",
                 "详细描述": f"**前置条件**：\n{precondition}\n\n**测试步骤**：\n{formatted_steps}\n\n**预期结果**：\n{expected_result}",
                 "测试步骤": formatted_steps,
                 "预期结果": expected_result,
