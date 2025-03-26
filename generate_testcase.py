@@ -83,6 +83,23 @@ if GEMINI_API_KEY:
         "response_parser": lambda json_data: json_data["choices"][0]["message"]["content"] if "choices" in json_data and len(json_data["choices"]) > 0 else ""
     }
 
+# 添加OpenRouter模型配置
+if OPENROUTER_API_KEY:
+    MODEL_CONFIGS["myopenrouter"] = {
+        "api_key_env": "OPENROUTER_API_KEY",
+        "endpoint": os.getenv("OPENROUTER_BASE_URL"), 
+        "headers": lambda key: {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json"
+        },
+        "payload": lambda messages, temperature: {
+            "model": os.getenv("OPENROUTER_MODEL_NAME"),  # 从环境变量获取模型名称
+            "messages": messages,
+            "temperature": temperature  # 添加temperature参数
+        },
+        "response_parser": lambda json_data: json_data["choices"][0]["message"]["content"] if "choices" in json_data and len(json_data["choices"]) > 0 else ""
+    }
+
 # 修改默认模型
 DEFAULT_MODEL = "default"
 
