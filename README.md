@@ -41,6 +41,10 @@ MODEL_NAME=your_model_name
 GEMINI_BASE_URL=https://gemini/v1/chat/completions
 GEMINI_API_KEY=666
 GEMINI_MODEL_NAME=gemini-2.0-pro-exp
+
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1/chat/completions
+OPENROUTER_API_KEY=	666
+OPENROUTER_MODEL_NAME=deepseek/deepseek-r1-distill-qwen-32b:free
 ```
 
 ### 快速使用
